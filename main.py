@@ -114,8 +114,6 @@ complete_count = complete_count.join(Orders, OrderDrivers.OrderTrackingID == Ord
 complete_count = complete_count.join(ClientMaster, ClientMaster.ClientID == Orders.ClientID)
 
 def get_uncomplete_count(employee_id):
-    
-
     response = non_complete_count.filter(OrderDrivers.DriverID == employee_id, Orders.Status == 'N')
     # Add filter for the date
     response = len(response.all())
@@ -124,17 +122,17 @@ def get_uncomplete_count(employee_id):
 
 def get_complete_count(employee_id):
     status_list = ['N', 'D', 'L']
-    
-
     response = complete_count.filter(OrderDrivers.DriverID == employee_id, ~Orders.Status.in_(status_list))
     # Add date filter 
     response = len(response.all())
     return response
 
-
+@app.route('/')
+def home_rte():
+    return render_template('home.html')
 
 @app.route('/driverreport')
-def test():
+def driver_report_rte():
     driver_complete = session.query(Terminals.TerminalID, Terminals.TerminalName, Employees.ID, Employees.DriverNo, Employees.LastName, Employees.FirstName)
     driver_complete = driver_complete.join(Terminals, Employees.TerminalID == Terminals.TerminalID)
     driver_complete = driver_complete.filter(Employees.Status == 'A', Employees.Driver == 'Y', Employees.DriverType == 'C')
@@ -144,184 +142,51 @@ def test():
     drivers = [r._asdict() for r in driver_complete]
     
     for driver in drivers:
-        driver['Uncomplete'] = get_uncomplete_count(driver['ID'])
-        driver['Complete'] = get_complete_count(driver['ID'])
+        driver['Uncompleted'] = get_uncomplete_count(driver['ID'])
+        driver['Completed'] = get_complete_count(driver['ID'])
+
+    today = date.today()
+    today = today.strftime("%m_%d_%y")
+    file_name = 'Driver_Completion_Report-' + today + '.xlsx'
+    workbook = xlsxwriter.Workbook(file_name)
+    worksheet = workbook.add_worksheet()
+
+    headers = ['Terminal ID', 'Terminal Name', 'Employee ID', 'Driver NO', 'Last Name', 'First Name', 'Uncompleted', 'Completed']
+    for x in range(len(headers)):
+        worksheet.write(0, x, headers[x])
+    
+    for idx, driver in enumerate(drivers):
+        
+        worksheet.write(idx+1, 0, driver['TerminalID'])
+        worksheet.write(idx+1, 1, driver['TerminalName'])
+        worksheet.write(idx+1, 2, driver['ID'])
+        worksheet.write(idx+1, 3, driver['DriverNo'])
+        worksheet.write(idx+1, 4, driver['LastName'])
+        worksheet.write(idx+1, 5, driver['FirstName'])
+        worksheet.write(idx+1, 6, driver['Uncompleted'])
+        worksheet.write(idx+1, 7, driver['Completed'])
+
+    workbook.close()
 
     
 
-    print(len(driver_complete))
-
-    return {'resp': drivers}
-
-
-
-
-
-
-
-
-@app.route('/')
-def home_rte():
-    return render_template('home.html')
-
-
-
-
-
-# def check_last_audit():
-#     # Check if any previous audit has been conducted
-#     dir_path = os.path.dirname(os.path.realpath(__file__))
-#     file_path = os.path.join(dir_path, "lastaudit.txt")
-#     last_audit = None
-#     if os.path.exists(file_path) and os.stat(file_path).st_size > 0:
-#         with open(file_path, 'r') as f:
-#             last_line = f.readlines()[-1]
-#             last_line = last_line.strip('\n')
-#             if len(last_line) > 0:
-#                 last_audit = datetime.strptime(last_line.strip('\n'), "%Y-%m-%d %H:%M:%S.%f")
-#             return last_audit
-#     return last_audit
-
-# # Return list of files with scancodes to be scanned
-# def generate_scan_file_list(last_audit):
-#     dir_path = os.path.dirname(os.path.realpath(__file__))
-#     dir_path = os.path.join(dir_path, "packagesreceived")
-#     file_list = []
-#     for file in os.listdir(dir_path):
-#         if file.startswith("PackagesReceived") and file.endswith(".csv"):
-#             scan_file = os.path.join(dir_path, file)
-#             lmt = os.path.getmtime(scan_file)
-#             modified = datetime.fromtimestamp(lmt)
-#             if last_audit is not None:
-#                 if modified >= last_audit:
-#                     file_list.append(scan_file)
-#             else:
-#                 file_list.append(scan_file)
-#     return file_list
-
-# def generate_master_list_scan_codes(file_list):
-
-#     scan_codes = {}
-#     for file in file_list:
-#         with open(file) as csvfile: 
-#             csvreader =  csv.reader(csvfile, delimiter=',')
-#             header = next(csvreader)
-#             for line in csvreader:
-#                 scan_codes[line[0]] = line[1]
-    
-#     return scan_codes
-
-
-# # Cross-reference scan codes 
-# def get_unscanned_codes(master_scan_codes): 
-#     last_hour = datetime.today() - timedelta(hours=int(os.getenv('HOUR_THRESHOLD')))
-#     scan_codes = master_scan_codes.keys()
-#     db_scan_codes = session.query(OrderScans.SCANcode)
-#     db_scan_codes = db_scan_codes.filter(
-#         OrderScans.SCANlocation == 'R', 
-#         OrderScans.aTimeStamp >= last_hour
-#     ).all()
-#     db_scan_codes = [r._asdict() for r in db_scan_codes]
-#     order_scans = [d['SCANcode'] for d in db_scan_codes]
-#     unscanned_codes = list(set(scan_codes) - set(order_scans))
-#     return unscanned_codes
-
-# # Get OrderTrackingID for packages without scan codes
-# def get_order_tracking_ids():
-#     threshold =  datetime.today() - timedelta(days=14)
-#     threshold = threshold.date()
-#     db_orders = session.query(OrderPackageItems.OrderTrackingID, OrderPackageItems.RefNo)
-#     db_orders = db_orders.join(Orders, OrderPackageItems.OrderTrackingID == Orders.OrderTrackingID)
-#     db_orders = db_orders.filter(Orders.oDate.cast(Date) >= threshold).all()
-#     db_orders = [r._asdict() for r in db_orders]
-#     unscanned_orders = {}
-#     for order in db_orders:
-#         k = order['RefNo']
-#         v = order['OrderTrackingID']
-#         unscanned_orders[k] = v
-#     return unscanned_orders
-
-
-# # Generate audit report file
-# def generate_audit_report(master_scan_list, order_package_items, unscanned_codes):
-
-#     today = date.today()
-#     today = today.strftime("%m_%d_%y")
-#     file_name = 'Audit_Report-' + today + '.xlsx'
-#     workbook = xlsxwriter.Workbook(file_name)
-#     worksheet = workbook.add_worksheet()
-
-#     headers = ['OrderTrackingID', 'ScanCode', 'TimeStamp']
-#     for x in range(len(headers)):
-#         worksheet.write(0, x, headers[x])
-    
-#     for idx, scan in enumerate(unscanned_codes):
-#         if scan in order_package_items: 
-#             worksheet.write(idx+1, 0, order_package_items[scan])
-#         else:
-#             worksheet.write(idx+1, 0, 'None')
-#         worksheet.write(idx+1, 1, scan)
-#         worksheet.write(idx+1, 2, master_scan_list[scan])
-
-#     workbook.close()
-
-#     # Write current timestamp to lastaudit
-#     dir_path = os.path.dirname(os.path.realpath(__file__))
-#     file_path = os.path.join(dir_path, "lastaudit.txt")
-#     with open(file_path, 'w') as f:
-#         f.write(str(datetime.now()))
-#         f.write('\n')
-
-#     subject = 'Scan Audit - ' + today
-#     msg = Message(
-#                     subject,
-#                     recipients = recipients
-#                 )
-#     msg.body = 'Find attached the scan audit report in the email'
-#     file = open(file_name, 'rb')
+    subject = 'Driver Completion Report - ' + today
+    msg = Message(
+                    subject,
+                    recipients = recipients
+                )
+    msg.body = 'Find attached the driver completion report in the email'
+    file = open(file_name, 'rb')
   
     
-#     msg.attach(file_name, '	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', file.read())
-#     mail.send(msg)
+    msg.attach(file_name, '	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', file.read())
+    mail.send(msg)
 
-#     return send_file(
-#         file_name,
-#         mimetype='application/vnd.ms-excel', 
-#         as_attachment=True
-#     )
-
-
-# @app.route('/')
-# def home_rte():
-#     return render_template('home.html')
-    
-
-# @app.route('/auditscan',  methods=["GET", "POST"])
-# def audit_scan_rte():
-#     passcode=request.form.get("passcode")
-#     if passcode != os.getenv("PASSCODE"):
-#         return render_template('403.html')
-
-#     last_audit = check_last_audit()    
-#     file_list = generate_scan_file_list(last_audit)
-#     master_scan_list = generate_master_list_scan_codes(file_list)
-#     unscanned_codes = get_unscanned_codes(master_scan_list)
-#     order_package_items = get_order_tracking_ids()
-    
-#     return generate_audit_report(master_scan_list, order_package_items, unscanned_codes)
-   
-
-
-# @app.route('/report',  methods=["GET", "POST"])
-# def report_rte():
-
-#     last_audit = check_last_audit()    
-#     file_list = generate_scan_file_list(last_audit)
-#     master_scan_list = generate_master_list_scan_codes(file_list)
-#     unscanned_codes = get_unscanned_codes(master_scan_list)
-#     order_package_items = get_order_tracking_ids()
-    
-#     return generate_audit_report(master_scan_list, order_package_items, unscanned_codes)
+    return send_file(
+        file_name,
+        mimetype='application/vnd.ms-excel', 
+        as_attachment=True
+    )
 
 if __name__ == "__main__":
     app.run()
