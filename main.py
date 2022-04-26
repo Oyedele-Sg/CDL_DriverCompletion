@@ -231,14 +231,14 @@ def home_rte():
 
 @app.route('/report')
 def report_rte():
-    return get_driver_report()
+    get_driver_report()
 
 @app.route('/driverreport', methods=["GET", "POST"])
 def driver_report_rte():
     passcode=request.form.get("passcode")
     if passcode != os.getenv("PASSCODE"):
         return render_template('403.html')
-    return get_driver_report()
+    get_driver_report()
     
 
 if __name__ == "__main__":
