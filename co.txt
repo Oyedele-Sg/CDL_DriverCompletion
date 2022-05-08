@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <system.webServer>
+        <handlers>
+            <add name="cdldrivercompletion" path="*" verb="*" modules="FastCgiModule" scriptProcessor="d:\program files\python39\python.exe|&quot;d:\program files\python39\lib\site-packages\wfastcgi.py&quot;" resourceType="Unspecified" />
+        </handlers>
+    </system.webServer>
+    <appSettings>
+        <!-- Required settings -->
+        <add key="WSGI_HANDLER" value="main.app" />
+        <add key="PYTHONPATH" value="D:\CDL\CDL_DriverCompletion" />
+        <add key="WSGI_LOG" value="D:\CDL\CDL_DriverCompletion\driver_completion.log" />
+    </appSettings>
+</configuration>

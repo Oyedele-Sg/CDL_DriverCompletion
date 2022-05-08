@@ -8,50 +8,55 @@ from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta, timezone
 from smtplib import SMTPException
 from dotenv import load_dotenv
-from logging.config import DEFAULT_LOGGING_CONFIG_PORT, dictConfig
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
+import logging, logging.handlers
 import xlsxwriter
 import os
-import csv
-import smtplib
-
-
-dictConfig(
-            {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-            'default': {
-                        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
-                       },
-            'simpleformatter' : {
-                        'format' : '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            }
-    },
-    'handlers':
-    {
-        'custom_handler': {
-            'class' : 'logging.FileHandler',
-            'formatter': 'default',
-            'filename' : 'drivercompletion.log',
-            'level': 'WARN',
-        }
-    },
-    'root': {
-        'level': 'WARN',
-        'handlers': ['custom_handler']
-    },
-})
 
 os.environ["WERKZEUG_RUN_MAIN"] = "true"
 load_dotenv()
+
+def setup_log(name):
+    logger = logging.getLogger(name)   
+
+    logger.setLevel(logging.DEBUG)
+
+    log_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    filename = f"{name}.log"
+    log_handler = logging.FileHandler(filename)
+    smtp_handler = logging.handlers.SMTPHandler(mailhost=('smtp.gmail.com', 587),
+                                                fromaddr=str(os.getenv('EMAIL')),
+                                                toaddrs=[str(os.getenv('SUPPORT'))],
+                                                subject='Error In CDL Driver Completion',
+                                                credentials=(str(os.getenv('EMAIL')), str(os.getenv('MAIL_PASS'))),
+                                                secure=())
+    log_handler.setLevel(logging.DEBUG)
+    smtp_handler.setLevel(logging.WARNING)
+    log_handler.setFormatter(log_format)
+    smtp_handler.setFormatter(log_format)
+
+    logger.addHandler(log_handler)
+    logger.addHandler(smtp_handler)
+
+    return logger
+
+
+
+def start_log(name):
+    logger = setup_log(name)
+    logger.info("Just logged from %s", name)   
+
+start_log("driver_completion")
 
 app = Flask(__name__)
 
 mail = Mail(app)
 
 # Database 
-driver = 'ODBC Driver 17 for SQL Server'
+# driver = 'ODBC Driver 17 for SQL Server'
+driver = 'SQL Server'
 user_name = os.getenv("USER_NAME")
 server = os.getenv("SERVER_NAME")
 db_name = os.getenv("DB_NAME")
@@ -66,7 +71,7 @@ app.config['MAIL_SERVER']='smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USERNAME'] = str(os.getenv('EMAIL'))
 app.config['MAIL_DEFAULT_SENDER'] = str(os.getenv('EMAIL'))
-app.config['MAIL_PASSWORD'] = 'gdpmfostoussfscf'
+app.config['MAIL_PASSWORD'] = str(os.getenv('MAIL_PASS'))
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 recipients = []
@@ -77,18 +82,9 @@ support = []
 for r in  os.getenv('SUPPORT').split(','):
     support.append(str(r))
 
-
 mail = Mail(app)
-
-
-
-
-
 db = SQLAlchemy(app)
-
 Base = automap_base()
-
-
 
 def _name_for_collection_relationship(base, local_cls, referred_cls, constraint):
     if constraint.name:
@@ -123,48 +119,30 @@ yesterday = yesterday.date()
 today = datetime.today()
 today = today.date()
 
-def send_error_email():
-    today = datetime.today()
-    today = today.strftime("%m/%d/%Y, %H:%M:%S")
-    subject = 'Driver Completion Report - ' + today
-    msg = Message(
-                    subject,
-                    recipients = support
-                )
-    msg.body = 'There was a server error when trying to perform the driver completion report. Please check app log to see error'
-
-    mail.send(msg)
-    return render_template('500.html')
-
 def get_uncomplete_count(employee_id):
-    try:
-        response = non_complete_count.filter(
-            OrderDrivers.DriverID == employee_id, 
-            Orders.Status == 'N',
-            Orders.DeliveryTargetTo.cast(Date) >= yesterday, 
-            Orders.DeliveryTargetTo.cast(Date) <= today)
-        response = len(response.all())
-        return response
-    except:
-        return send_error_email()
+    response = non_complete_count.filter(
+        OrderDrivers.DriverID == employee_id, 
+        Orders.Status == 'N',
+        Orders.DeliveryTargetTo.cast(Date) >= yesterday, 
+        Orders.DeliveryTargetTo.cast(Date) <= today)
+    response = len(response.all())
+    return response
 
 
 def get_complete_count(employee_id):
-    try:
-        status_list = ['N', 'D', 'L']
-        response = complete_count.filter(
-            OrderDrivers.DriverID == employee_id, 
-            ~Orders.Status.in_(status_list),
-            Orders.DeliveryTargetTo.cast(Date) >= yesterday, 
-            Orders.DeliveryTargetTo.cast(Date) <= today)
-        response = len(response.all())
-        return response
-    except:
-        return send_error_email()
+    status_list = ['N', 'D', 'L']
+    response = complete_count.filter(
+        OrderDrivers.DriverID == employee_id, 
+        ~Orders.Status.in_(status_list),
+        Orders.DeliveryTargetTo.cast(Date) >= yesterday, 
+        Orders.DeliveryTargetTo.cast(Date) <= today)
+    response = len(response.all())
+    return response
+  
 
 
 def get_driver_report():
-    try:
+    with app.test_request_context():  
         driver_complete = session.query(Terminals.TerminalID, Terminals.TerminalName, Employees.ID, Employees.DriverNo, Employees.LastName, Employees.FirstName)
         driver_complete = driver_complete.join(Terminals, Employees.TerminalID == Terminals.TerminalID)
         driver_complete = driver_complete.filter(Employees.Status == 'A', Employees.Driver == 'Y', Employees.DriverType == 'C')
@@ -209,7 +187,7 @@ def get_driver_report():
                     )
         msg.body = 'Find attached the driver completion report in the email'
         file = open(file_name, 'rb')
-    
+
         
         msg.attach(file_name, '	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', file.read())
         mail.send(msg)
@@ -219,19 +197,17 @@ def get_driver_report():
             mimetype='application/vnd.ms-excel', 
             as_attachment=True
         )
-    except:
-        return send_error_email()
+
 
 @app.route('/')
 def home_rte():
-    try:
-        return render_template('home.html')
-    except:
-        return send_error_email()
+    return render_template('home.html')
+    
 
 @app.route('/report')
 def report_rte():
     get_driver_report()
+    
 
 @app.route('/driverreport', methods=["GET", "POST"])
 def driver_report_rte():
@@ -239,7 +215,20 @@ def driver_report_rte():
     if passcode != os.getenv("PASSCODE"):
         return render_template('403.html')
     get_driver_report()
-    
+
+@app.errorhandler(500)
+def internal_error(exception):
+    return render_template('500.html'), 500
+
+
+
+sched = BackgroundScheduler(daemon=True)
+trigger = CronTrigger(
+        year="*", month="*", day="*", hour=8, minute=59, second=0
+    )
+sched.add_job(get_driver_report,trigger)
+sched.start()
+
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="localhost", port=8081)
