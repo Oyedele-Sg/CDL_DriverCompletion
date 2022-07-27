@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <style>
+        table {
+          border-collapse: collapse;
+          width: 100%;
+        }
+        
+        th, td {
+          text-align: left;
+          padding: 8px;
+        }
+        
+        tr:nth-child(even) {background-color: aquamarine;}
+        tr:nth-child(odd) {background-color: aqua}
+        </style>
+</head>
+<body>
+    <h2>Driver Completion Report Summary</h2>
+
+    <p>Find the driver completion report summary for {{ day_of_report}} below. A detail report has been attached to this email.</p>
+
+    <div id="container">
+        <table style="border-collapse: collapse; width: 100%;">
+            <thead style="width: 100%;">
+                <tr style="width: 100%;">
+                    <th style="text-align: left;padding: 8px;">Hub</th>
+                    <th style="text-align: center;padding: 8px;">Active</th>
+                    <th style="text-align: center;padding: 8px;">Complete</th>
+                    <th style="text-align: center;padding: 8px;">Total</th>
+                    <th style="text-align: center;padding: 8px;">Percent Complete</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for col in summary %}
+                    {% if col['total'] > 0 %}
+                        <tr>
+                            <td style="text-align: left;padding: 8px;">{{col['name']}}</td>
+                            <td style="text-align: center;padding: 8px;">{{col['active']}}</td>
+                            <td style="text-align: center;padding: 8px;">{{col['complete']}}</td>
+                            <td style="text-align: center;padding: 8px;">{{col['total']}}</td>
+                            <td style="text-align: center;padding: 8px;">{{col['percent_complete']}} %</td>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+                <tr>
+                    <td style="text-align: left;padding: 8px;">{{total_summary['name']}}</td>
+                    <td style="text-align: center;padding: 8px;">{{total_summary['active']}}</td>
+                    <td style="text-align: center;padding: 8px;">{{total_summary['complete']}}</td>
+                    <td style="text-align: center;padding: 8px;">{{total_summary['total']}}</td>
+                    <td style="text-align: center;padding: 8px;">{{total_summary['percent_complete']}} %</td>
+                </tr>
+            </tbody>  
+          </table>
+    </div>
+    
+</body>
+</html>

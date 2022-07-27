@@ -1,0 +1,35 @@
+2022-07-27 12:46:24,242  * Running on http://localhost:7003/ (Press CTRL+C to quit)
+2022-07-27 12:47:54,314  * Running on http://localhost:7007/ (Press CTRL+C to quit)
+2022-07-27 12:48:23,606 127.0.0.1 - - [27/Jul/2022 12:48:23] "GET / HTTP/1.1" 200 -
+2022-07-27 12:48:23,723 127.0.0.1 - - [27/Jul/2022 12:48:23] "GET /static/logo.png HTTP/1.1" 200 -
+2022-07-27 12:48:23,754 127.0.0.1 - - [27/Jul/2022 12:48:23] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2022-07-27 12:49:08,438 Exception on /report [GET]
+Traceback (most recent call last):
+  File "C:\Program Files\Python39\lib\site-packages\flask\app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Program Files\Python39\lib\site-packages\flask\app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Program Files\Python39\lib\site-packages\flask\app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Program Files\Python39\lib\site-packages\flask\app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "D:\CDL\CDL_DriverCompletion\main.py", line 253, in report_rte
+    file_name = get_driver_report()
+  File "D:\CDL\CDL_DriverCompletion\main.py", line 232, in get_driver_report
+    mail.send(msg)
+  File "C:\Program Files\Python39\lib\site-packages\flask_mail.py", line 491, in send
+    with self.connect() as connection:
+  File "C:\Program Files\Python39\lib\site-packages\flask_mail.py", line 144, in __enter__
+    self.host = self.configure_host()
+  File "C:\Program Files\Python39\lib\site-packages\flask_mail.py", line 165, in configure_host
+    host.login(self.mail.username, self.mail.password)
+  File "C:\Program Files\Python39\lib\smtplib.py", line 750, in login
+    raise last_exception
+  File "C:\Program Files\Python39\lib\smtplib.py", line 739, in login
+    (code, resp) = self.auth(
+  File "C:\Program Files\Python39\lib\smtplib.py", line 662, in auth
+    raise SMTPAuthenticationError(code, resp)
+smtplib.SMTPAuthenticationError: (535, b'5.7.3 Authentication unsuccessful [CH0PR03CA0426.namprd03.prod.outlook.com]')
+2022-07-27 12:49:08,460 127.0.0.1 - - [27/Jul/2022 12:49:08] "[35m[1mGET /report HTTP/1.1[0m" 500 -
+2022-07-27 12:50:29,248  * Running on http://localhost:7007/ (Press CTRL+C to quit)
+2022-07-27 12:52:09,307 127.0.0.1 - - [27/Jul/2022 12:52:09] "GET /report HTTP/1.1" 200 -

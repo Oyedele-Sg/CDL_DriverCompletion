@@ -1,0 +1,6 @@
+.env
+driver_completion.log
+*.xlsx
+/DriverCompletion
+/build
+*.spec
